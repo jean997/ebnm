@@ -14,7 +14,7 @@ pn_likelihood_by_hand <- function(params, x, s){
   mu <- params[3]
   n <- length(x)
 
-  lik_part1 <- pi0*dnorm(x = x, mean = 0, sd = s)
+  lik_part1 <- pi0*dnorm(x = x, mean = mu, sd = s)
   lik_part2 <- (1-pi0)*dnorm(x = x, mean = mu, sd = sqrt(s^2 + sigma_2))
   ll <- sum(log(lik_part1 + lik_part2))
   return(ll)
@@ -61,8 +61,6 @@ ll_first_part <- pn_nllik(par = params, x, s, par_init = par_init,
                           z = precomp$z,
                           sum_z = precomp$sum_z,
                           calc_grad = TRUE, calc_hess = FALSE)
-
-
 
 
 
