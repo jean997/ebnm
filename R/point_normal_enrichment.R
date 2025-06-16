@@ -64,7 +64,7 @@ pne_scalepar <- function(par, scale_factor) {
 # Precomputations.
 #
 pne_precomp <- function(x, s, annot, par_init, fix_par) {
-  fix_mu  <- fix_par[3]
+  fix_mu  <- fix_par[length(fix_par)]
 
   if (!fix_mu && any(s == 0)) {
     stop("The mode cannot be estimated if any SE is zero (the gradient does ",
@@ -124,6 +124,7 @@ pne_nllik <- function(par, x, s, par_init, fix_par,
   fix_s2  <- fix_par[k + 1]
   fix_mu  <- fix_par[k + 2]
 
+  bs <- numeric(length = k)
   i <- 1
   while(i <= k){
     if(fix_bs[i]){
@@ -183,7 +184,8 @@ pne_nllik <- function(par, x, s, par_init, fix_par,
     grad <- numeric(length(par))
     i <- 1
     if (!fix_pi0) {
-      grad_pi0 <- (sum(logist.alpha) - sum(logist.ny))*colSums(annot) # vector length k
+      # does not work needs fixed
+      grad_pi0 <- (sum(logist.alpha*annot[,i]) - sum(logist.ny*annot[,i])) # vector length k
       if(any(fix_bs)){
         grad_pi0[fix_bs == TRUE] <- 0
       }
