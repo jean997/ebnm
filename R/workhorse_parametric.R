@@ -16,6 +16,7 @@
 #
 parametric_workhorse <- function(x,
                                  s,
+                                 annot = NULL,
                                  mode,
                                  scale,
                                  pointmass,
@@ -52,12 +53,17 @@ parametric_workhorse <- function(x,
   #   of length 3, indicates whether 1. the weight of the spike component;
   #   2. the scale of the slab component; and 3. the location of the components
   #   is fixed.
-  par_init <- do.call(initpar_fn, list(g_init = g_init,
-                                       mode = mode,
-                                       scale = scale,
-                                       pointmass = pointmass,
-                                       x = x,
-                                       s = s))
+  par_init_input <- list(g_init = g_init,
+                         mode = mode,
+                         scale = scale,
+                         pointmass = pointmass,
+                         x = x,
+                         s = s)
+  if(!is.null(annot)){
+    par_init_input$annot <- annot
+  }
+  par_init <- do.call(initpar_fn, par_init_input)
+
   if (fix_g) {
     fix_par <- c(TRUE, TRUE, TRUE)
   } else {
@@ -81,6 +87,7 @@ parametric_workhorse <- function(x,
   #   log likelihood attained).
   optres <- mle_parametric(x = x_optset,
                            s = s_optset,
+                           annot = annot,
                            par_init = par_init,
                            fix_par = fix_par,
                            scalepar_fn = scalepar_fn,
@@ -92,21 +99,30 @@ parametric_workhorse <- function(x,
                            use_grad = optmethod$use_grad,
                            use_hess = optmethod$use_hess)
 
+  cat("done with mle\n")
   # Build return object.
   retlist <- list()
 
   if (data_in_output(output)) {
     retlist <- add_data_to_retlist(retlist, x, s)
   }
-
-  if (posterior_in_output(output)) {
-    posterior <- do.call(summres_fn, list(x = x,
-                                          s = s,
-                                          optpar = optres$par,
-                                          output = output))
-    retlist <- add_posterior_to_retlist(retlist, posterior, output, x)
+  if (annot_in_output(output)) {
+    retlist <- add_annot_to_retlist(retlist, annot)
   }
 
+  cat("next is posteriors")
+  summres_input <- list(x = x,
+                        s = s,
+                        optpar = optres$par,
+                        output = output)
+  if(!is.null(annot)){
+    summres_input$annot <- annot
+  }
+  if (posterior_in_output(output)) {
+    posterior <- do.call(summres_fn, summres_input)
+    retlist <- add_posterior_to_retlist(retlist, posterior, output, x)
+  }
+  cat("done with posteriors\n")
   if (g_in_output(output)) {
     fitted_g <- do.call(partog_fn, list(par = optres$par))
     retlist  <- add_g_to_retlist(retlist, fitted_g)
@@ -156,6 +172,7 @@ handle_optmethod_parameter <- function(optmethod, fix_par) {
 #'
 mle_parametric <- function(x,
                            s,
+                           annot = NULL,
                            par_init,
                            fix_par,
                            scalepar_fn,
@@ -173,16 +190,20 @@ mle_parametric <- function(x,
   par_init <- do.call(scalepar_fn, list(par = par_init,
                                         scale_factor = scale_factor))
 
-  precomp <- do.call(precomp_fn, list(x = x,
-                                      s = s,
-                                      par_init = par_init,
-                                      fix_par = fix_par))
+  precomp_input <- list(x = x,
+                        s = s,
+                        par_init = par_init,
+                        fix_par = fix_par)
+  if(!is.null(annot)){
+    precomp_input$annot <- annot
+  }
+  precomp <- do.call(precomp_fn, precomp_input)
 
   # Parameters that end up getting passed to all optimization functions:
   fn_params <- c(list(x = x, s = s, par_init = par_init, fix_par = fix_par),
                  precomp)
 
-  p <- unlist(par_init)[!fix_par]
+  p <- unlist(par_init[!fix_par])
 
   # Don't initialize using infinite values.
   which.inf <- is.infinite(p)
@@ -255,7 +276,19 @@ mle_parametric <- function(x,
 
   # Combine the fixed and estimated parameters.
   retpar <- par_init
-  retpar[!fix_par] <- optpar
+  i <- 1
+  if(!fix_par[1]){
+    k <- length(par_init[[1]])
+    retpar[[1]] <- optpar[1:k]
+    i <- i + k
+  }
+  if(!fix_par[2]){
+    retpar[[2]] <- optpar[i]
+    i <- i + 1
+  }
+  if(!fix_par[3]){
+    retpar[[3]] <- optpar[i]
+  }
 
   # Re-scale parameters and log likelihood.
   retpar <- do.call(scalepar_fn, list(par = retpar,

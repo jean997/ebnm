@@ -3,7 +3,7 @@
 #' @export
 #'
 ebnm_output_default <- function() {
-  return(c(data_arg_str(), pm_arg_str(), psd_arg_str(),
+  return(c(data_arg_str(), annot_arg_str(), pm_arg_str(), psd_arg_str(),
            g_arg_str(), llik_arg_str()))
 }
 
@@ -12,12 +12,13 @@ ebnm_output_default <- function() {
 #' @export
 #'
 ebnm_output_all <- function() {
-  return(c(data_arg_str(), pm_arg_str(), psd_arg_str(), pm2_arg_str(),
+  return(c(data_arg_str(), annot_arg_str(), pm_arg_str(), psd_arg_str(), pm2_arg_str(),
            lfsr_arg_str(), g_arg_str(), llik_arg_str(), samp_arg_str()))
 }
 
 # Return value names as used in arguments to parameter 'output'.
 data_arg_str <- function() "data"
+annot_arg_str <- function() "annot"
 pm_arg_str   <- function() "posterior_mean"
 psd_arg_str  <- function() "posterior_sd"
 pm2_arg_str  <- function() "posterior_second_moment"
@@ -28,6 +29,7 @@ samp_arg_str <- function() "posterior_sampler"
 
 # Return value names as used in the returned ebnm object.
 data_ret_str <- function() "data"
+annot_ret_str <- function() "annotation"
 obs_ret_str  <- function() "x"
 se_ret_str   <- function() "s"
 df_ret_str   <- function() "posterior"
@@ -72,6 +74,10 @@ data_in_output <- function(output) {
   return(data_arg_str() %in% output)
 }
 
+annot_in_output <- function(output) {
+  return(annot_arg_str() %in% output)
+}
+
 add_data_to_retlist <- function(retlist, x, s) {
   df <- list()
   df[[obs_ret_str()]] <- x
@@ -79,6 +85,12 @@ add_data_to_retlist <- function(retlist, x, s) {
   df <- data.frame(df)
 
   retlist[[data_ret_str()]] <- df
+  return(retlist)
+}
+
+add_annot_to_retlist <- function(retlist, annot) {
+  df <- data.frame(annot)
+  retlist[[annot_ret_str()]] <- df
   return(retlist)
 }
 

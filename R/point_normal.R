@@ -290,17 +290,36 @@ pn_summres_untransformed <- function(x, s, w, a, mu, output) {
 
 # Posterior weights for non-null effects.
 wpost_normal <- function(x, s, w, a, mu) {
-  if (w == 0) {
-    return(rep(0, length(x)))
-  }
 
-  if (w == 1) {
-    return(rep(1, length(x)))
+  if(length(w) == 1){
+    if (w == 0) {
+      return(rep(0, length(x)))
+    }
+    if (w == 1) {
+      return(rep(1, length(x)))
+    }
+  } else{
+    if(! length(w) == length(x)){
+      stop("Length of w must match length of x.")
+    }
+    wpost <- numeric(length = length(w))
+    wpost[w == 0] <- 0
+    wpost[w == 1] <- 1
+    ix <- which(w > 0 & w < 1)
+    if(length(ix) == 0){
+      return(wpost)
+    }
   }
 
   llik.diff <- 0.5 * log(1 + 1 / (a * s^2))
   llik.diff <- llik.diff - 0.5 * (x - mu)^2 / (s^2 * (a * s^2 + 1))
-  wpost <- w / (w + (1 - w) * exp(llik.diff))
+
+  if(length(wpost) ==1){
+    wpost <- w / (w + (1 - w) * exp(llik.diff[ix]))
+  } else{
+    wpost[ix] <- w[ix] / (w[ix] + (1 - w[ix]) * exp(llik.diff[ix]))
+  }
+
 
   if (any(s == 0)) {
     wpost[s == 0 & x == mu] <- 0

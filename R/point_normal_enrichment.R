@@ -1,3 +1,13 @@
+# Point normal enrichment class
+point_normal_enrichment <- function(bs, mean, sd) {
+  x <- list(mean = rep(mean, 2),
+            sd = c(0, sd),
+            bs = bs)
+  structure(x, class = "normalmix_enrichment")
+}
+
+
+
 # The point-normal family uses the ashr class normalmix.
 #
 pne_checkg <- function(g_init, fix_g, mode, scale, pointmass, call) {
@@ -7,28 +17,33 @@ pne_checkg <- function(g_init, fix_g, mode, scale, pointmass, call) {
                scale = scale,
                pointmass = pointmass,
                call = call,
-               class_name = "normalmix",
+               class_name = "normalmix_enrichment",
                scale_name = "sd")
 }
 
 
 # Point-normal parameters are alpha = logit(pi0), beta = log(s2), and mu.
 #
-pne_initpar <- function(g_init, mode, scale, pointmass, x, s) {
-  if (!is.null(g_init) && length(g_init$pi) == 1) {
-    par <- list(alpha = -Inf,
-                beta = 2 * log(g_init$sd),
-                mu = g_init$mean)
-  } else if (!is.null(g_init) && length(g_init$pi) == 2) {
-    par <- list(alpha = -log(1 / g_init$pi[1] - 1),
+pne_initpar <- function(g_init, mode, scale, pointmass, x, s, annot) {
+  if (!is.null(g_init) && length(g_init$mean) == 1) { # there is no point mass, this should never happen.
+    stop("The point-normal enrichment family requires a point mass at zero, ",
+         "i.e., g_init must have length 2 for 'mean'.")
+  } else if (!is.null(g_init) && length(g_init$mean) == 2) {
+    k <- ncol(annot) + 1 # +1 for intercept
+    if(length(g_init$bs)!= k) {
+      stop("The point-normal enrichment family requires the length of 'bs' ",
+           "to match the number of annotations plus one for the intercept.")
+    }
+    par <- list(bs = g_init$bs,
                 beta = 2 * log(g_init$sd[2]),
                 mu = g_init$mean[1])
   } else {
+    k <- ncol(annot) + 1 # +1 for intercept
     par <- list()
     if (!pointmass) {
-      par$alpha <- -Inf
+      stop("The point-normal enrichment family requires a point mass at zero.")
     } else {
-      par$alpha <- 0 # default
+      par$bs <- numeric(length = k) # default
     }
     if (!identical(scale, "estimate")) {
       if (length(scale) != 1) {
@@ -49,29 +64,19 @@ pne_initpar <- function(g_init, mode, scale, pointmass, x, s) {
 }
 
 
-pne_scalepar <- function(par, scale_factor) {
-  if (!is.null(par$beta)) {
-    par$beta <- par$beta + 2 * log(scale_factor)
-  }
-  if (!is.null(par$mu)) {
-    par$mu <- scale_factor * par$mu
-  }
-
-  return(par)
-}
-
-
 # Precomputations.
 #
 pne_precomp <- function(x, s, annot, par_init, fix_par) {
-  fix_mu  <- fix_par[length(fix_par)]
+  fix_mu  <- fix_par[3]
 
   if (!fix_mu && any(s == 0)) {
     stop("The mode cannot be estimated if any SE is zero (the gradient does ",
          "not exist).")
   }
 
+  ## currently pne not good if any s = 0
   if (any(s == 0)) {
+    stop("PNE not implemented for s = 0")
     which_s0 <- which(s == 0)
     which_x_nz <- which(x[which_s0] != par_init$mu)
     n0 <- length(which_s0) - length(which_x_nz)
@@ -100,8 +105,8 @@ pne_precomp <- function(x, s, annot, par_init, fix_par) {
   annot <- cbind(rep(1, length = n2),
                  annot)
 
-
-  return(list(n0 = n0, n1 = n1, sum1 = sum1, n2 = n2, s2 = s2, z = z, sum_z = sum_z, annot = annot))
+  k <- ncol(annot)
+  return(list(n0 = n0, n1 = n1, sum1 = sum1, n2 = n2, s2 = s2, z = z, sum_z = sum_z, annot = annot, k = k))
 }
 
 
@@ -113,28 +118,23 @@ pne_precomp <- function(x, s, annot, par_init, fix_par) {
 # par_init <- list(bs, beta, mu)
 # bs has length k
 pne_nllik <- function(par, x, s, par_init, fix_par,
-                     n0, n1, sum1, n2, s2, z, sum_z, annot,
+                     n0, n1, sum1, n2, s2, z, sum_z, annot, k,
                      calc_grad, calc_hess) {
 
-  k <- ncol(annot)
 
-  fix_bs <- fix_par[1:k]
-  fix_pi0 <- all(fix_bs)
-
-  fix_s2  <- fix_par[k + 1]
-  fix_mu  <- fix_par[k + 2]
+  fix_pi0 <- fix_par[1]
+  fix_s2  <- fix_par[2]
+  fix_mu  <- fix_par[3]
 
   bs <- numeric(length = k)
   i <- 1
-  while(i <= k){
-    if(fix_bs[i]){
-      bs[i] <- par_init$bs[i]
-    } else {
-      bs[i] <- par[i]
-    }
-    i <- i + 1
+  if(fix_pi0){
+    bs <- par_init$bs
+  } else {
+    bs <- par[i:(i + k -1)]
+    i <- i + k
   }
-  alpha <- rowSums(t(t(annot)*bs)) # logit(pi0)
+  alpha <- rowSums(t(t(annot)*bs)) # logit(pi0), now a vector
 
   if (fix_s2) {
     beta <- par_init$beta
@@ -186,9 +186,6 @@ pne_nllik <- function(par, x, s, par_init, fix_par,
     if (!fix_pi0) {
       # does not work needs fixed
       grad_pi0 <- (sum(logist.alpha*annot[,i]) - sum(logist.ny*annot[,i])) # vector length k
-      if(any(fix_bs)){
-        grad_pi0[fix_bs == TRUE] <- 0
-      }
       grad <- grad_pi0
       i <- i + k
     }
@@ -252,66 +249,74 @@ pne_nllik <- function(par, x, s, par_init, fix_par,
 #   to be added back in. We also check boundary solutions here.
 #
 pne_postcomp <- function(optpar, optval, x, s, par_init, fix_par, scale_factor,
-                        n0, n1, sum1, n2, s2, z, sum_z) {
+                        n0, n1, sum1, n2, s2, z, sum_z, annot, k) {
   llik <- pn_llik_from_optval(optval, n1, n2, s2)
   retlist <- list(par = optpar, val = llik)
 
   # Check the solution pi0 = 1.
-  fix_pi0 <- fix_par[1]
-  fix_mu  <- fix_par[3]
-  if (!fix_pi0 && fix_mu) {
-    pi0_llik <- sum(-0.5 * log(2 * pi * s^2) - 0.5 * (x - par_init$mu)^2 / s^2)
-    pi0_llik <- pi0_llik + sum(is.finite(x)) * log(scale_factor)
-    if (pi0_llik > llik) {
-      retlist$par$alpha <- Inf
-      retlist$par$beta <- 0
-      retlist$val <- pi0_llik
-    }
-  }
+  # fix_pi0 <- fix_par[1]
+  # fix_mu  <- fix_par[3]
+  # if (!fix_pi0 && fix_mu) {
+  #   pi0_llik <- sum(-0.5 * log(2 * pi * s^2) - 0.5 * (x - par_init$mu)^2 / s^2)
+  #   pi0_llik <- pi0_llik + sum(is.finite(x)) * log(scale_factor)
+  #   if (pi0_llik > llik) {
+  #     retlist$par$alpha <- Inf
+  #     retlist$par$beta <- 0
+  #     retlist$val <- pi0_llik
+  #   }
+  # }
 
   return(retlist)
-}
-
-pn_llik_from_optval <- function(optval, n1, n2, s2) {
-  if (length(s2) == 1) {
-    sum.log.s2 <- n2 * log(s2)
-  } else {
-    sum.log.s2 <- sum(log(s2))
-  }
-
-  return(-optval - 0.5 * ((n1 + n2) * log(2 * pi) + sum.log.s2))
 }
 
 
 # Summary results.
 #
-pne_summres <- function(x, s, optpar, output) {
-  w  <- 1 - 1 / (exp(-optpar$alpha) + 1)
+pne_summres <- function(x, s, annot, optpar, output) {
+  bs <- optpar$bs
+  alpha <- rowSums(t(t(annot)*bs))
+  w  <- 1 - 1 / (exp(-alpha) + 1) # now a vector, 1-pi0
+  a  <- exp(-optpar$beta) # 1/sigma^2
+  mu <- optpar$mu
+
+  return(pn_summres_untransformed(x, s, w, a, mu, output)) #can borrow pn_summres_untransformed.
+}
+
+
+# Convert from parameters to class normalmix_enrichment.
+#
+#' @importFrom ashr normalmix
+#'
+pne_partog <- function(par) {
+  bs <- par$bs
+  sd   <- exp(par$beta / 2)
+  mean <- par$mu
+
+  g <- point_normal_enrichment(bs = bs,
+                             mean = mean,
+                             sd = sd)
+
+  return(g)
+}
+
+
+# Sample from the posterior under point-normal enrichment prior
+#
+# @param nsamp The number of samples to return per observation.
+#
+# @return An nsamp by length(x) matrix containing samples from the
+#   posterior, with each row corresponding to a single sample.
+#
+#' @importFrom stats rbinom rnorm
+#'
+pne_postsamp <- function(x, s, annot, optpar, nsamp) {
+  bs <- optpar$bs
+  alpha <- rowSums(t(t(annot)*bs))
+  w  <- 1 - 1 / (exp(-alpha) + 1) # now a vector, 1-pi0
   a  <- exp(-optpar$beta)
   mu <- optpar$mu
 
-  return(pn_summres_untransformed(x, s, w, a, mu, output))
-}
-
-pn_summres_untransformed <- function(x, s, w, a, mu, output) {
-  wpost <- wpost_normal(x, s, w, a, mu)
-  pmean_cond <- pmean_cond_normal(x, s, a, mu)
-  pvar_cond <- pvar_cond_normal(s, a)
-
-  posterior <- list()
-
-  if (result_in_output(output)) {
-    posterior$mean  <- wpost * pmean_cond + (1 - wpost) * mu
-    posterior$mean2 <- wpost * (pmean_cond^2 + pvar_cond) + (1 - wpost) * (mu^2)
-    posterior$mean2 <- pmax(posterior$mean2, posterior$mean^2)
-    posterior$sd    <- sqrt(pmax(0, posterior$mean2 - posterior$mean^2))
-  }
-
-  if (lfsr_in_output(output)) {
-    posterior$lfsr  <- (1 - wpost) + wpost * pnorm(0, abs(pmean_cond), sqrt(pvar_cond))
-  }
-
-  return(posterior)
+  return(pn_postsamp_untransformed(x, s, w, a, mu, nsamp))
 }
 
 
