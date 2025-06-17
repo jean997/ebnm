@@ -135,7 +135,11 @@ parametric_workhorse <- function(x,
 
   if (sampler_in_output(output)) {
     sampler <- function(nsamp) {
-      samp <- postsamp_fn(x, s, optres$par, nsamp)
+      samp_input <- list(x = x, s = s, optar = optres$par, nsamp = nsamp)
+      if(!is.null(annot)){
+        samp_input$annot <- annot
+      }
+      samp <- do.call(postsamp_fn, samp_input)
       colnames(samp) <- names(x)
       return(samp)
     }

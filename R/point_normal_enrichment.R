@@ -274,7 +274,8 @@ pne_postcomp <- function(optpar, optval, x, s, par_init, fix_par, scale_factor,
 #
 pne_summres <- function(x, s, annot, optpar, output) {
   bs <- optpar$bs
-  alpha <- rowSums(t(t(annot)*bs))
+  #cat("summres amnot ", ncol(annot), "\n")
+  alpha <- bs[1] + rowSums(t(t(annot)*bs[-1]))
   w  <- 1 - 1 / (exp(-alpha) + 1) # now a vector, 1-pi0
   a  <- exp(-optpar$beta) # 1/sigma^2
   mu <- optpar$mu
@@ -311,7 +312,10 @@ pne_partog <- function(par) {
 #'
 pne_postsamp <- function(x, s, annot, optpar, nsamp) {
   bs <- optpar$bs
-  alpha <- rowSums(t(t(annot)*bs))
+  #cat("postsamp amnot ", ncol(annot), "\n")
+  #alpha <- rowSums(t(t(annot)*bs))
+
+  alpha <- bs[1] + rowSums(t(t(annot)*bs[-1]))
   w  <- 1 - 1 / (exp(-alpha) + 1) # now a vector, 1-pi0
   a  <- exp(-optpar$beta)
   mu <- optpar$mu
