@@ -314,8 +314,8 @@ wpost_normal <- function(x, s, w, a, mu) {
   llik.diff <- 0.5 * log(1 + 1 / (a * s^2))
   llik.diff <- llik.diff - 0.5 * (x - mu)^2 / (s^2 * (a * s^2 + 1))
 
-  if(length(wpost) ==1){
-    wpost <- w / (w + (1 - w) * exp(llik.diff[ix]))
+  if(length(w) ==1){
+    wpost <- w / (w + (1 - w) * exp(llik.diff))
   } else{
     wpost[ix] <- w[ix] / (w[ix] + (1 - w[ix]) * exp(llik.diff[ix]))
   }
