@@ -99,7 +99,7 @@ parametric_workhorse <- function(x,
                            use_grad = optmethod$use_grad,
                            use_hess = optmethod$use_hess)
 
-  cat("done with mle\n")
+
   # Build return object.
   retlist <- list()
 
@@ -110,7 +110,7 @@ parametric_workhorse <- function(x,
     retlist <- add_annot_to_retlist(retlist, annot)
   }
 
-  cat("next is posteriors")
+
   summres_input <- list(x = x,
                         s = s,
                         optpar = optres$par,
@@ -122,7 +122,7 @@ parametric_workhorse <- function(x,
     posterior <- do.call(summres_fn, summres_input)
     retlist <- add_posterior_to_retlist(retlist, posterior, output, x)
   }
-  cat("done with posteriors\n")
+
   if (g_in_output(output)) {
     fitted_g <- do.call(partog_fn, list(par = optres$par))
     retlist  <- add_g_to_retlist(retlist, fitted_g)
