@@ -115,6 +115,7 @@ parametric_workhorse <- function(x,
   if (llik_in_output(output)) {
     loglik  <- optres$val
     retlist <- add_llik_to_retlist(retlist, loglik, x, df = sum(!fix_par))
+    retlist$nllik_grad <- optres$gradient
   }
 
   if (sampler_in_output(output)) {
@@ -271,6 +272,7 @@ mle_parametric <- function(x,
                                          scale_factor = scale_factor),
                                     precomp))
 
+  retlist$gradient <- optres$gradient
   return(retlist)
 }
 
