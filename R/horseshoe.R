@@ -19,8 +19,6 @@ horseshoe <- function(scale) {
   structure(data.frame(scale), class = "horseshoe")
 }
 
-#' @importFrom horseshoe HS.post.mean HS.post.var HS.normal.means
-#'
 horseshoe_workhorse <- function(x = x,
                                 s = s,
                                 mode = mode,
@@ -30,6 +28,11 @@ horseshoe_workhorse <- function(x = x,
                                 output = output,
                                 control = control,
                                 call = call) {
+  if (!requireNamespace("horseshoe", quietly = TRUE)) {
+    stop("Package horseshoe must be installed to use the horseshoe ",
+         "prior family.")
+  }
+
   if (length(s) != 1) {
     if (!isTRUE(all.equal(min(s) / mean(s), max(s) / mean(s)))) {
       stop("The horseshoe prior family requires homoskedastic standard errors.")
@@ -103,7 +106,7 @@ horseshoe_workhorse <- function(x = x,
   if (sampler_in_output(output)) {
     post_sampler <- function(nsamp, burn = 1000) {
       cat("MCMC Sampling with", burn, "burn-in samples\n")
-      samp <- HS.normal.means(
+      samp <- horseshoe::HS.normal.means(
         x,
         tau = tau,
         Sigma2 = s^2,
