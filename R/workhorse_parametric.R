@@ -263,16 +263,25 @@ mle_parametric <- function(x,
                                       scale_factor = 1 / scale_factor))
   optval <- optval - sum(is.finite(x)) * log(scale_factor)
 
+  optgrad <- do.call(nllik_fn,
+                     list(par = retpar, calc_grad = TRUE, calc_hess = FALSE, ...))
+  optgrad <- attr(nllik, "gradient")
+
   retlist <- do.call(postcomp_fn, c(list(optpar = retpar,
                                          optval = optval,
+                                         gradient = optgrad,
                                          x = x,
                                          s = s,
                                          par_init = par_init,
                                          fix_par = fix_par,
                                          scale_factor = scale_factor),
-                                    precomp))
+                                         precomp))
 
-  retlist$gradient <- optres$gradient
+
+
+
+
+  
   return(retlist)
 }
 
