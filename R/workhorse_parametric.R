@@ -116,6 +116,7 @@ parametric_workhorse <- function(x,
     loglik  <- optres$val
     retlist <- add_llik_to_retlist(retlist, loglik, x, df = sum(!fix_par))
     retlist$nllik_grad <- optres$gradient
+    retlist$nllik_hess <- optres$hessian
   }
 
   if (sampler_in_output(output)) {
@@ -263,9 +264,9 @@ mle_parametric <- function(x,
                                       scale_factor = 1 / scale_factor))
   optval <- optval - sum(is.finite(x)) * log(scale_factor)
 
-  optgrad <- do.call(nllik_fn,
-                     c(list(par = optpar, calc_grad = TRUE, calc_hess = FALSE), fn_params))
-  optgrad <- attr(optgrad, "gradient")
+  optnllik <- do.call(nllik_fn,
+                     c(list(par = optpar, calc_grad = TRUE, calc_hess = TRUE), fn_params))
+
 
   retlist <- do.call(postcomp_fn, c(list(optpar = retpar,
                                          optval = optval,
@@ -276,7 +277,8 @@ mle_parametric <- function(x,
                                          scale_factor = scale_factor),
                                          precomp))
 
-  retlist$gradient <- optgrad
+  retlist$gradient <- attr(optnllik, "gradient")
+  retlist$hessian <- attr(optnllik, "hessian")
 
 
 
