@@ -126,6 +126,37 @@ parametric_workhorse <- function(x,
       return(samp)
     }
     retlist <- add_sampler_to_retlist(retlist, sampler)
+    #retlist$par <- optres$par
+  }
+
+  if (samplerep_in_output(output)) {
+    if(is.null(optres$hessian)){
+      stop("Cannot return EP Sampler, Hessian is NULL.")
+    }else if(all(is.na(optres$hessian))){
+      stop("Cannot return EP Sampler, Hessian not computed.")
+    }
+    npar <- length(optres$par)
+    nfix_par_i <- which(!fix_par)
+    stopifnot(length(nfix_par_i) > 0)
+    npar_nfix <- length(nfix_par_i)
+
+    eig_I <- eigen(solve(optres$hessian))
+    I_sqrt_t <- with(eig_I, t(vectors) * sqrt(values))
+    samplerep <- function(nsamp) {
+      par_samp <- matrix(0, nrow = nsamp, ncol = npar)
+      par_nfix_samp <- matrix(rnorm(n = npar_nfix*nsamp), nrow = nsamp)
+      par_nfix_samp <- par_nfix_samp %*% I_sqrt_t
+      par_samp[, nfix_par_i] <- par_nfix_samp
+      par_samp <- t(t(par_samp) + unlist(optres$par))
+      samp <- sapply(seq(nsamp), function(i){
+        my_par <- as.list(par_samp[i,])
+        names(my_par) <- names(optres$par)
+        postsamp_fn(x, s, my_par, 1)
+      }) |> t()
+      colnames(samp) <- names(x)
+      return(samp)
+    }
+    retlist <- add_samplerep_to_retlist(retlist, samplerep)
   }
 
   return(retlist)
@@ -264,10 +295,6 @@ mle_parametric <- function(x,
                                       scale_factor = 1 / scale_factor))
   optval <- optval - sum(is.finite(x)) * log(scale_factor)
 
-  optnllik <- do.call(nllik_fn,
-                     c(list(par = optpar, calc_grad = TRUE, calc_hess = TRUE), fn_params))
-
-
   retlist <- do.call(postcomp_fn, c(list(optpar = retpar,
                                          optval = optval,
                                          x = x,
@@ -277,6 +304,8 @@ mle_parametric <- function(x,
                                          scale_factor = scale_factor),
                                          precomp))
 
+  optnllik <- do.call(nllik_fn,
+                      c(list(par = optpar, calc_grad = TRUE, calc_hess = TRUE), fn_params))
   retlist$gradient <- attr(optnllik, "gradient")
   retlist$hessian <- attr(optnllik, "hessian")
 

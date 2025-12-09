@@ -13,7 +13,7 @@ ebnm_output_default <- function() {
 #'
 ebnm_output_all <- function() {
   return(c(data_arg_str(), pm_arg_str(), psd_arg_str(), pm2_arg_str(),
-           lfsr_arg_str(), g_arg_str(), llik_arg_str(), samp_arg_str()))
+           lfsr_arg_str(), g_arg_str(), llik_arg_str(), samp_arg_str(), sampep_arg_str()))
 }
 
 # Return value names as used in arguments to parameter 'output'.
@@ -25,6 +25,7 @@ lfsr_arg_str <- function() "lfsr"
 g_arg_str    <- function() "fitted_g"
 llik_arg_str <- function() "log_likelihood"
 samp_arg_str <- function() "posterior_sampler"
+sampep_arg_str <- function() "posterior_sampler_ep"
 
 # Return value names as used in the returned ebnm object.
 data_ret_str <- function() "data"
@@ -38,6 +39,7 @@ lfsr_ret_str <- function() "lfsr"
 g_ret_str    <- function() "fitted_g"
 llik_ret_str <- function() "log_likelihood"
 samp_ret_str <- function() "posterior_sampler"
+sampep_ret_str <- function() "posterior_sampler_ep"
 grp_ret_str  <- function() "group"
 
 # Postprocessing of the returned object is done here.
@@ -131,7 +133,15 @@ sampler_in_output <- function(output) {
   return(samp_arg_str() %in% output)
 }
 
+samplerep_in_output <- function(output) {
+  return(sampep_arg_str() %in% output)
+}
+
 add_sampler_to_retlist <- function(retlist, sampler) {
   retlist[[samp_ret_str()]] <- sampler
+  return(retlist)
+}
+add_samplerep_to_retlist <- function(retlist, sampler) {
+  retlist[[sampep_ret_str()]] <- sampler
   return(retlist)
 }
