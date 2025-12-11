@@ -117,6 +117,9 @@ parametric_workhorse <- function(x,
     retlist <- add_llik_to_retlist(retlist, loglik, x, df = sum(!fix_par))
     retlist$nllik_grad <- optres$gradient
     retlist$nllik_hess <- optres$hessian
+    retlist$par <- optres$par
+    retlist$fix_par <- fix_par
+    retlist$postsamp_fn <- postsamp_fn
   }
 
   if (sampler_in_output(output)) {
